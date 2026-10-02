@@ -1,0 +1,211 @@
+{
+  "name": "AI Invoice Processing - Fixed Dynamic Output",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "process-invoice",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        48,
+        32
+      ],
+      "id": "9100d737-572f-4e1b-aadc-e594d90a281d",
+      "name": "Webhook (From Streamlit)",
+      "webhookId": "61e5f465-7f79-47f5-b4a8-d9a0304d1354"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        272,
+        240
+      ],
+      "id": "dcc882b4-30e8-479a-9348-936a0d7e4114",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "AsvuYb9isrZy6jRb",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Extract all key invoice information from the provided invoice content below.\n\nINVOICE CONTENT TO PROCESS:\n{{ $json.body.invoice_text || $json.body.text || JSON.stringify($json.body) }}\n\nReturn strict JSON format matching this schema:\n{\n  \"vendor_name\": \"Name of company issuing the invoice\",\n  \"invoice_number\": \"Invoice reference number\",\n  \"invoice_date\": \"YYYY-MM-DD format\",\n  \"total_amount\": 0.00,\n  \"tax_amount\": 0.00,\n  \"category\": \"Category e.g. Software, Office Supplies, Travel, Utilities, Marketing, Operations\",\n  \"line_items\": [\n    {\n      \"description\": \"Item description\",\n      \"quantity\": 1,\n      \"unit_price\": 0.00,\n      \"total\": 0.00\n    }\n  ]\n}",
+        "hasOutputParser": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [
+        272,
+        32
+      ],
+      "id": "51c4f127-c85e-494e-8dd5-34d009be6506",
+      "name": "AI Invoice Extractor"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        448,
+        240
+      ],
+      "id": "f64f8963-14af-47ff-a020-64fbfe0fac1e",
+      "name": "Structured JSON Output Parser"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sanitize and structure data for Sheets and Streamlit\nconst aiOutput = $input.first().json.output || $input.first().json;\n\nconst formattedData = {\n  vendor_name: aiOutput.vendor_name || \"Unknown Vendor\",\n  invoice_number: aiOutput.invoice_number || \"INV-N/A\",\n  invoice_date: aiOutput.invoice_date || new Date().toISOString().split('T')[0],\n  total_amount: parseFloat(aiOutput.total_amount || 0),\n  tax_amount: parseFloat(aiOutput.tax_amount || 0),\n  category: aiOutput.category || \"General Expense\",\n  line_items: aiOutput.line_items || [],\n  processed_at: new Date().toISOString()\n};\n\nreturn { json: formattedData };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        32
+      ],
+      "id": "eb76a2f4-bf8c-4f74-892d-1bbcf7bc50e4",
+      "name": "Format & Validate Data"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "18OkC7gkAzVnw2iiVUkfKkTtbsu3WoUiRr1qvXbLGPiE",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Vendor Name  ": "={{ $json.vendor_name }}",
+            "Invoice Number": "={{ $json.invoice_number }}",
+            " Date": "={{ $json.invoice_date }}",
+            "Total Amount": "={{ $json.total_amount }}",
+            "Category ": "={{ $json.category }}",
+            "Processed At": "={{ $json.processed_at }}"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        768,
+        32
+      ],
+      "id": "5743ca7a-34ee-4a8b-96b2-f9e5bb025513",
+      "name": "Log to Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "94uDuYA4AtW7FNIG",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        992,
+        32
+      ],
+      "id": "51a2b338-b86d-416c-a44b-ec50d4449f4b",
+      "name": "Respond to Streamlit"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook (From Streamlit)": {
+      "main": [
+        [
+          {
+            "node": "AI Invoice Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Invoice Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured JSON Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Invoice Extractor",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Invoice Extractor": {
+      "main": [
+        [
+          {
+            "node": "Format & Validate Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format & Validate Data": {
+      "main": [
+        [
+          {
+            "node": "Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Respond to Streamlit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
