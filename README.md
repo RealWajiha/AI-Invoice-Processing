@@ -36,5 +36,5 @@ An automated, end-to-end invoice data extraction and expense management system p
 
 ### 1. Clone Repository
 ```bash
-git clone [https://github.com/RealWajiha/AI-Invoice-Processing-Studio.git](https://github.com/RealWajiha/AI-Invoice-Processing-Studio.git)
-cd AI-Invoice-Processing-Studio
+git clone [https://github.com/RealWajiha/AI-Invoice-Processing.git](https://github.com/RealWajiha/AI-Invoice-Processing.git)
+cd AI-Invoice-Processing
